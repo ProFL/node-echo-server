@@ -1,7 +1,8 @@
-import os from "node:os";
+import { tmpdir } from "node:os";
+
+import express from "express";
 
 import bodyParser from "body-parser";
-import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import multer from "multer";
@@ -13,7 +14,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(helmet());
 
-const upload = multer({ dest: os.tmpdir() });
+const upload = multer({ dest: tmpdir() });
 
 app.all("*", upload.any(), async function (req, res) {
     const filteredHeaders = req.headers;
@@ -38,6 +39,13 @@ app.all("*", upload.any(), async function (req, res) {
     res.json(requestData);
 });
 
-app.listen(8080, () => {
-    console.log("Server listening on port 8080");
+const port = parseInt(process.env.PORT ?? "8080", 10);
+
+if (isNaN(port)) {
+    console.error("PORT (env var) is not a number");
+    process.exit(1);
+}
+
+app.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
 });
