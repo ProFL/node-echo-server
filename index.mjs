@@ -31,7 +31,7 @@ app.all("*", upload.any(), async function (req, res) {
             method: req.method,
             path: req.originalUrl,
             headers: filteredHeaders,
-            params: req.query,
+            query: req.query,
             body: req.body,
         },
     };
