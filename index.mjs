@@ -1,15 +1,22 @@
-import fs from "node:fs";
-import fsPromises from "node:fs/promises";
-import { pipeline } from "node:stream/promises";
+import os from "node:os";
 
-import { fastifyMultipart } from "@fastify/multipart";
-import Fastify from "fastify";
+import bodyParser from "body-parser";
+import express from "express";
+import helmet from "helmet";
+import morgan from "morgan";
+import multer from "multer";
 
-const fastify = Fastify({ logger: true });
-fastify.register(fastifyMultipart);
+const app = express();
 
-fastify.all("*", async function (request, response) {
-    const filteredHeaders = request.headers;
+app.use(morgan("dev"));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(helmet());
+
+const upload = multer({ dest: os.tmpdir() });
+
+app.all("*", upload.any(), async function (req, res) {
+    const filteredHeaders = req.headers;
     Object.keys(filteredHeaders).forEach((key) => {
         if (!key.startsWith("cf-")) {
             return;
@@ -18,41 +25,19 @@ fastify.all("*", async function (request, response) {
         delete filteredHeaders[key];
     });
 
-    let body = request.body;
-
-    if (request.headers["content-type"] == "multipart/form-data") {
-        const [file] = await request.saveRequestFiles();
-
-        if (file) {
-            const { fields, filepath, ...fileMeta } = file;
-
-            body = {
-                ...body,
-                multipartFormData: {
-                    ...fileMeta,
-                    ...fields,
-                }
-            };
-        }
-    }
-
     const requestData = {
         request: {
-            method: request.method,
-            path: request.originalUrl,
+            method: req.method,
+            path: req.originalUrl,
             headers: filteredHeaders,
-            params: request.query,
-            body: body,
+            params: req.query,
+            body: req.body,
         },
     };
     console.dir(requestData);
-    response.send(requestData);
+    res.json(requestData);
 });
 
-fastify.listen({ port: 8080, host: "0.0.0.0" }, function (err, address) {
-    if (err) {
-        fastify.log.error(err);
-        process.exit(1);
-    }
-    fastify.log.info(`Server is now listening on ${address}`);
+app.listen(8080, () => {
+    console.log("Server listening on port 8080");
 });
